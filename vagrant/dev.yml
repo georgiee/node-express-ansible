@@ -1,0 +1,10 @@
+---
+- name: "Node Server: Install nginx, mongodb, nodejs"
+  hosts: web:&development
+  become: yes
+  remote_user: vagrant
+  roles:
+    - { role: common }
+    - { role: nginx }
+    - { role: nodejs }
+    - { role: application }

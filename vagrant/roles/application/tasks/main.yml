@@ -1,0 +1,52 @@
+---
+- name: Create web root
+  file:
+    path: "{{ www_root }}"
+    owner: "{{ web_user }}"
+    group: "{{ web_group }}"
+    mode: 0755
+    state: directory
+
+- name: Create logs folder of sites
+  file:
+    path: "{{ www_root }}/node.dev/logs"
+    owner: "{{ web_user }}"
+    group: "{{ web_group }}"
+    mode: 0755
+    state: directory
+
+- name: Create Server configuration
+  template:
+    src: "express-server.conf.j2"
+    dest: "{{ nginx_path }}/sites-available/node.dev.conf"
+  notify: reload nginx
+
+- name: Enable Server
+  file:
+    src: "{{ nginx_path }}/sites-available/node.dev.conf"
+    dest: "{{ nginx_path }}/sites-enabled/node.dev.conf"
+    owner: root
+    group: root
+    state: link
+
+- name: Run local npm install (only local development)
+  command: npm install
+  connection: local 
+  become: false #never become on local
+  tags: ttk
+  args:
+    chdir: "{{local_project_path}}"
+  
+  when: "'development' in group_names"
+
+- name: create pm2 app config
+  template:
+    src: "pm2-config.yml.j2"
+    dest: "{{app_path}}/pm.yml"
+  tags: pm2
+
+- name: start app with pm2
+  command: pm2 start pm.yml
+  tags: pm2
+  args:
+    chdir: "{{app_path}}"

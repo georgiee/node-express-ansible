@@ -1,0 +1,67 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+ANSIBLE_PATH = __dir__
+
+ip = '192.168.11.111'
+cpus = 1
+memory = 512 # in MB
+
+Vagrant.configure("2") do |config|
+  config.vm.box = 'ubuntu/trusty64'
+  config.ssh.forward_agent = true
+  config.ssh.shell = %{bash -c 'BASH_ENV=/etc/profile exec bash'}
+
+  # Required for NFS to work
+  config.vm.network :private_network, ip: ip, hostsupdater: 'skip'
+
+  if Vagrant.has_plugin? 'vagrant-hostmanager'
+    config.hostmanager.enabled = true
+    config.hostmanager.manage_host = true
+    config.hostmanager.aliases = "node.dev"
+  else
+    fail_with_message "vagrant-hostmanager missing, please install the plugin with this command:\nvagrant plugin install vagrant-hostmanager"
+  end
+
+  # Sync folder 'web' which contains the node app
+  config.vm.synced_folder relative_path("../web"), nfs_path("node-dev"), type: 'nfs'
+  config.bindfs.bind_folder nfs_path("node-dev"), remote_path("node.dev"), u: 'vagrant', g: 'www-data', o: 'nonempty'
+
+  #config.vm.synced_folder "/local/path/to/myapp", "/srv/myapp"
+
+  # Virtualbox settings
+  config.vm.provider :virtualbox do |vb|
+    vb.name = "dev-machine"
+    vb.customize ['modifyvm', :id, '--cpus', cpus]
+    vb.customize ['modifyvm', :id, '--memory', memory]
+
+    # Fix for slow external network connections
+    vb.customize ['modifyvm', :id, '--natdnshostresolver1', 'on']
+    vb.customize ['modifyvm', :id, '--natdnsproxy1', 'on']
+  end
+
+  config.vm.provision :ansible do |ansible|
+    ansible.playbook = File.join(ANSIBLE_PATH, 'dev.yml')
+    
+    ansible.tags = ENV['ANSIBLE_TAGS']
+    ansible.verbose = false # true or 'vvvv'
+    
+    ansible.groups = {
+      'web' => ['default'],
+      'development' => ['default']
+    }
+  end
+end
+
+
+def relative_path(path)
+  File.expand_path(path, ANSIBLE_PATH)
+end
+
+def nfs_path(name)
+  "/vagrant-nfs-#{name}"
+end
+
+def remote_path(name)
+  "/srv/www/#{name}/current"
+end

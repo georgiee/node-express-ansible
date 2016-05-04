@@ -1,0 +1,18 @@
+---
+- name: Install Node
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - nodejs
+    - npm
+
+- name: Symlink nodejs->node
+  file:
+    src: /usr/bin/nodejs 
+    dest: /usr/bin/node
+    state: link
+
+- name: PM2 | Install PM2
+  npm: name=pm2 global=yes
+  tags: pm2

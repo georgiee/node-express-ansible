@@ -1,0 +1,5 @@
+app_path: /srv/www/node.dev/current
+www_root: /srv/www
+web_user: vagrant
+web_group: www-data
+local_project_path: ../web
